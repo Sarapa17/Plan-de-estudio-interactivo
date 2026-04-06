@@ -1,0 +1,1938 @@
+<!doctype html>
+<html lang="es">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Plan Interactivo - Constructor</title>
+        <script
+            type="text/javascript"
+            src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"
+        ></script>
+        <style>
+            :root {
+                --bg-primary: #111827;
+                --bg-panel: rgba(15, 23, 42, 0.92);
+                --border-color: #334155;
+                --text-primary: #e2e8f0;
+                --text-secondary: #cbd5e1;
+                --text-tertiary: #94a3b8;
+                --node-bg: #1f2937;
+            }
+
+            body.light-mode {
+                --bg-primary: #f8fafc;
+                --bg-panel: rgba(255, 255, 255, 0.95);
+                --border-color: #cbd5e1;
+                --text-primary: #0f172a;
+                --text-secondary: #475569;
+                --text-tertiary: #64748b;
+                --node-bg: #ffffff;
+            }
+
+            body,
+            html {
+                margin: 0;
+                padding: 0;
+                width: 100%;
+                height: 100%;
+                background-color: var(--bg-primary);
+                color: var(--text-primary);
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                overflow: hidden;
+                transition:
+                    background-color 0.3s ease,
+                    color 0.3s ease;
+            }
+
+            .screen {
+                width: 100%;
+                height: 100%;
+                display: none;
+            }
+            .screen.active {
+                display: block;
+            }
+
+            /* Builder */
+            #builder-screen {
+                overflow: auto;
+                padding: 24px;
+                box-sizing: border-box;
+            }
+            .builder-wrap {
+                max-width: 1100px;
+                margin: 0 auto;
+                background: var(--bg-panel);
+                border: 1px solid var(--border-color);
+                border-radius: 14px;
+                padding: 20px;
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+            }
+            .builder-wrap h1 {
+                margin: 0 0 8px 0;
+                font-size: 26px;
+            }
+            .builder-wrap p {
+                margin: 0 0 16px 0;
+                color: var(--text-secondary);
+            }
+            .builder-layout {
+                display: grid;
+                grid-template-columns: 1.1fr 0.9fr;
+                gap: 16px;
+            }
+            .card {
+                background: rgba(2, 6, 23, 0.25);
+                border: 1px solid var(--border-color);
+                border-radius: 10px;
+                padding: 14px;
+            }
+            body.light-mode .card {
+                background: rgba(248, 250, 252, 0.8);
+            }
+            .card h2 {
+                font-size: 16px;
+                margin: 0 0 10px 0;
+            }
+            .step-title {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                margin-bottom: 12px;
+            }
+            .step-badge {
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 12px;
+                font-weight: 700;
+                background: #475569;
+                color: white;
+            }
+            .form-grid {
+                display: grid;
+                grid-template-columns: 1.2fr 120px 180px auto auto;
+                gap: 10px;
+                align-items: end;
+                margin-bottom: 12px;
+            }
+            label {
+                display: block;
+                font-size: 13px;
+                color: var(--text-secondary);
+                margin-bottom: 6px;
+            }
+            input,
+            select,
+            textarea {
+                width: 100%;
+                border: 1px solid var(--border-color);
+                background: var(--node-bg);
+                color: var(--text-primary);
+                border-radius: 8px;
+                padding: 10px;
+                box-sizing: border-box;
+                font-size: 13px;
+            }
+            textarea {
+                min-height: 180px;
+                resize: vertical;
+                font-family: Consolas, Monaco, 'Courier New', monospace;
+                line-height: 1.4;
+            }
+            select[multiple] {
+                min-height: 220px;
+            }
+            .subjects-toolbar {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 8px;
+                gap: 10px;
+            }
+            .counter-pill {
+                padding: 4px 10px;
+                border-radius: 999px;
+                font-size: 12px;
+                background: rgba(71, 85, 105, 0.12);
+                color: #475569;
+                border: 1px solid rgba(148, 163, 184, 0.35);
+            }
+            .subjects-list {
+                border: 1px solid var(--border-color);
+                border-radius: 10px;
+                overflow: hidden;
+                max-height: 330px;
+                overflow-y: auto;
+            }
+            .subjects-table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 13px;
+            }
+            .subjects-table th,
+            .subjects-table td {
+                padding: 9px 10px;
+                border-bottom: 1px solid var(--border-color);
+                text-align: left;
+            }
+            .subjects-table th {
+                position: sticky;
+                top: 0;
+                background: rgba(15, 23, 42, 0.95);
+                color: var(--text-tertiary);
+                z-index: 1;
+                font-size: 12px;
+                letter-spacing: 0.3px;
+            }
+            body.light-mode .subjects-table th {
+                background: rgba(248, 250, 252, 0.95);
+            }
+            .subjects-table tbody tr:hover {
+                background: rgba(148, 163, 184, 0.1);
+            }
+            .subjects-table th:nth-child(1),
+            .subjects-table td:nth-child(1) {
+                width: 55%;
+            }
+            .subjects-table th:nth-child(2),
+            .subjects-table td:nth-child(2) {
+                width: 12%;
+            }
+            .subjects-table th:nth-child(3),
+            .subjects-table td:nth-child(3) {
+                width: 20%;
+            }
+            .subjects-table th:nth-child(4),
+            .subjects-table td:nth-child(4) {
+                width: 13%;
+            }
+            .inline-input,
+            .inline-select {
+                width: 100%;
+                background: transparent;
+                border: 1px solid rgba(148, 163, 184, 0.35);
+                color: var(--text-primary);
+                border-radius: 6px;
+                padding: 6px 8px;
+                font-size: 12px;
+            }
+            .inline-input:focus,
+            .inline-select:focus {
+                outline: none;
+                border-color: #64748b;
+                box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.18);
+            }
+            .empty-state {
+                padding: 18px;
+                color: var(--text-tertiary);
+                text-align: center;
+                font-size: 13px;
+            }
+            .state-pill {
+                padding: 3px 8px;
+                border-radius: 999px;
+                font-size: 11px;
+                font-weight: 700;
+            }
+            .state-pill.s0 {
+                color: #94a3b8;
+                background: rgba(148, 163, 184, 0.18);
+            }
+            .state-pill.s1 {
+                color: #475569;
+                background: rgba(71, 85, 105, 0.14);
+            }
+            .state-pill.s2 {
+                color: #475569;
+                background: rgba(55, 65, 81, 0.14);
+            }
+            .icon-btn {
+                border: 1px solid rgba(71, 85, 105, 0.45);
+                background: rgba(71, 85, 105, 0.12);
+                color: #475569;
+                border-radius: 6px;
+                padding: 4px 8px;
+                font-size: 12px;
+                cursor: pointer;
+            }
+            .icon-btn:hover {
+                background: rgba(71, 85, 105, 0.18);
+            }
+            .prereq-grid {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            .prereq-preview {
+                margin: 0;
+                padding-left: 18px;
+                max-height: 160px;
+                overflow: auto;
+                color: var(--text-secondary);
+                font-size: 13px;
+            }
+            .prereq-preview li {
+                margin-bottom: 6px;
+            }
+            .status-msg {
+                margin-top: 10px;
+                border: 1px solid rgba(148, 163, 184, 0.45);
+                background: rgba(226, 232, 240, 0.16);
+                color: var(--text-secondary);
+                border-radius: 8px;
+                padding: 10px 12px;
+                font-size: 13px;
+                display: none;
+            }
+            .hint {
+                margin-top: 8px;
+                font-size: 12px;
+                color: var(--text-tertiary);
+            }
+            .validation-message {
+                font-size: 12px;
+                margin-top: 6px;
+                padding: 6px 8px;
+                border-radius: 6px;
+                display: none;
+            }
+            .validation-message.show {
+                display: block;
+            }
+            .validation-message.error {
+                background: rgba(220, 38, 38, 0.15);
+                color: #dc2626;
+                border: 1px solid rgba(220, 38, 38, 0.3);
+            }
+            .validation-message.success {
+                background: rgba(34, 197, 94, 0.15);
+                color: #22c55e;
+                border: 1px solid rgba(34, 197, 94, 0.3);
+            }
+            #subject-name.duplicate {
+                border-color: #dc2626;
+                box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.1);
+            }
+            #subject-name.available {
+                border-color: #22c55e;
+                box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.1);
+            }
+            .advanced-toggle {
+                margin-top: 14px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+            }
+            #raw-editor {
+                margin-top: 10px;
+                display: none;
+            }
+            #raw-editor.open {
+                display: block;
+            }
+            .raw-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+            }
+            .builder-actions {
+                margin-top: 14px;
+                display: flex;
+                gap: 10px;
+                flex-wrap: wrap;
+            }
+            .btn {
+                color: white;
+                border: none;
+                padding: 9px 14px;
+                border-radius: 8px;
+                font-weight: 700;
+                cursor: pointer;
+                font-size: 13px;
+            }
+            .btn.primary {
+                background-color: #475569;
+            }
+            .btn.primary:hover {
+                background-color: #334155;
+            }
+            .btn.secondary {
+                background-color: #64748b;
+            }
+            .btn.secondary:hover {
+                background-color: #475569;
+            }
+            .btn.danger {
+                background-color: #7f1d1d;
+            }
+            .btn.danger:hover {
+                background-color: #641e16;
+            }
+
+            #mynetwork {
+                width: 100%;
+                height: 100%;
+            }
+
+            #top-panel {
+                position: absolute;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                display: flex;
+                align-items: center;
+                gap: 24px;
+                background: var(--bg-panel);
+                padding: 12px 20px;
+                border-radius: 8px;
+                border: 1px solid var(--border-color);
+                z-index: 10;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+                max-width: calc(100vw - 24px);
+                overflow-x: auto;
+            }
+            #legend {
+                display: flex;
+                gap: 18px;
+                font-weight: 500;
+            }
+            .leg-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 13px;
+                color: var(--text-secondary);
+                white-space: nowrap;
+            }
+            .box {
+                width: 16px;
+                height: 16px;
+                border-radius: 4px;
+                border: 2px solid;
+            }
+            .pend {
+                border-color: #475569;
+                background-color: #1e293b;
+            }
+            .reg {
+                border-color: #6b7280;
+                background-color: rgba(100, 116, 139, 0.12);
+            }
+            .apr {
+                border-color: #374151;
+                background-color: rgba(55, 65, 81, 0.12);
+            }
+            .pued {
+                border-color: #cbd5e1;
+                background-color: var(--node-bg);
+            }
+
+            .btn-container {
+                display: flex;
+                gap: 8px;
+                align-items: center;
+            }
+
+            #theme-toggle-container {
+                position: absolute;
+                bottom: 20px;
+                right: 20px;
+                z-index: 10;
+            }
+            #theme-toggle {
+                background: var(--bg-panel);
+                border: 1px solid var(--border-color);
+                border-radius: 50%;
+                width: 52px;
+                height: 52px;
+                cursor: pointer;
+                position: relative;
+                transition: all 0.3s ease;
+                padding: 0;
+            }
+            #theme-toggle::before {
+                content: 'Tema';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                font-size: 13px;
+                letter-spacing: 0.2px;
+            }
+            body.light-mode #theme-toggle::before {
+                content: 'Tema';
+            }
+
+            #activity-panel {
+                position: absolute;
+                top: 20px;
+                right: 20px;
+                background: var(--bg-panel);
+                padding: 18px;
+                border-radius: 12px;
+                border: 1px solid var(--border-color);
+                z-index: 10;
+                min-width: 190px;
+            }
+            #activity-panel h3 {
+                margin: 0 0 12px 0;
+                font-size: 16px;
+                color: var(--text-secondary);
+                text-align: center;
+            }
+            .rings-container {
+                display: flex;
+                justify-content: center;
+                margin-bottom: 10px;
+            }
+            .stat-item {
+                display: flex;
+                justify-content: space-between;
+                font-size: 13px;
+                margin-bottom: 6px;
+                color: var(--text-secondary);
+            }
+            .stat-value {
+                font-weight: 700;
+                color: var(--text-primary);
+            }
+
+            #eligible-panel {
+                position: absolute;
+                top: 20px;
+                left: 20px;
+                background: var(--bg-panel);
+                padding: 16px;
+                border-radius: 12px;
+                border: 1px solid var(--border-color);
+                z-index: 10;
+                width: 300px;
+                max-height: calc(100vh - 40px);
+                display: flex;
+                flex-direction: column;
+            }
+            #eligible-panel h3 {
+                margin: 0;
+                font-size: 16px;
+                color: var(--text-secondary);
+            }
+            #eligible-count {
+                margin-top: 6px;
+                font-size: 12px;
+                color: var(--text-tertiary);
+            }
+            #eligible-list {
+                margin: 12px 0 0;
+                padding-left: 18px;
+                overflow-y: auto;
+                flex: 1;
+            }
+            #eligible-list li {
+                color: var(--text-secondary);
+                font-size: 13px;
+                line-height: 1.35;
+                margin-bottom: 6px;
+            }
+
+            @media (max-width: 960px) {
+                .builder-layout {
+                    grid-template-columns: 1fr;
+                }
+                .form-grid {
+                    grid-template-columns: 1fr;
+                }
+                .raw-grid {
+                    grid-template-columns: 1fr;
+                }
+                #eligible-panel,
+                #activity-panel {
+                    position: static;
+                    width: auto;
+                    margin: 10px;
+                    max-height: none;
+                }
+                #top-panel {
+                    left: 10px;
+                    right: 10px;
+                    transform: none;
+                    max-width: none;
+                }
+                #viewer-screen {
+                    overflow: auto;
+                }
+                #mynetwork {
+                    height: 70vh;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div id="builder-screen" class="screen active">
+            <div class="builder-wrap">
+                <h1>Constructor de Plan de Estudios</h1>
+                <p>
+                    Armá tu plan paso a paso y después lo ves en el mismo mapa
+                    interactivo que ya venías usando.
+                </p>
+
+                <div class="builder-layout">
+                    <div class="card">
+                        <div class="step-title">
+                            <span class="step-badge">1</span>
+                            <h2>Cargá tus materias</h2>
+                        </div>
+
+                        <div class="form-grid">
+                            <div>
+                                <label for="subject-name">Nombre</label>
+                                <input
+                                    id="subject-name"
+                                    type="text"
+                                    placeholder="Ej: Programación Estructurada"
+                                />
+                                <div
+                                    id="subject-name-validation"
+                                    class="validation-message"
+                                ></div>
+                            </div>
+                            <div>
+                                <label for="subject-level">Cuatrimestre</label>
+                                <input
+                                    id="subject-level"
+                                    type="number"
+                                    min="1"
+                                    value="1"
+                                />
+                            </div>
+                            <div>
+                                <label for="global-initial-state"
+                                    >Estado inicial global</label
+                                >
+                                <select id="global-initial-state">
+                                    <option value="0">Pendiente</option>
+                                    <option value="1">Regular</option>
+                                    <option value="2">Aprobada</option>
+                                </select>
+                            </div>
+                            <button
+                                class="btn secondary"
+                                id="apply-initial-state-btn"
+                            >
+                                Aplicar a Todas
+                            </button>
+                            <button class="btn primary" id="add-subject-btn">
+                                Agregar
+                            </button>
+                        </div>
+
+                        <div class="subjects-toolbar">
+                            <div class="counter-pill" id="subjects-counter">
+                                0 materias
+                            </div>
+                            <button
+                                class="btn secondary"
+                                id="clear-subjects-btn"
+                            >
+                                Vaciar Materias
+                            </button>
+                        </div>
+
+                        <div class="subjects-list">
+                            <table class="subjects-table">
+                                <thead>
+                                    <tr>
+                                        <th>Materia</th>
+                                        <th>Cuat.</th>
+                                        <th>Estado</th>
+                                        <th>Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="subjects-table-body"></tbody>
+                            </table>
+                            <div id="subjects-empty" class="empty-state">
+                                Todavía no agregaste materias.
+                            </div>
+                        </div>
+
+                        <div class="hint">
+                            Todas las materias nuevas arrancan con el estado
+                            inicial global. Luego podés ajustar cualquier fila
+                            inline.
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="step-title">
+                            <span class="step-badge">2</span>
+                            <h2>Definí correlativas</h2>
+                        </div>
+
+                        <div class="prereq-grid">
+                            <div>
+                                <label for="prereq-target-select">
+                                    Materia objetivo
+                                </label>
+                                <select id="prereq-target-select"></select>
+                            </div>
+                            <div>
+                                <label for="prereq-multi-select">
+                                    Requiere tener regular/aprobada
+                                </label>
+                                <select
+                                    id="prereq-multi-select"
+                                    multiple
+                                ></select>
+                            </div>
+                            <button class="btn primary" id="save-prereq-btn">
+                                Guardar Correlativas
+                            </button>
+                        </div>
+
+                        <div class="hint">
+                            Tip: mantené apretado <code>Cmd</code> para
+                            seleccionar múltiples correlativas.
+                        </div>
+
+                        <h2 style="margin-top: 14px">Resumen actual</h2>
+                        <ul id="prereq-preview" class="prereq-preview"></ul>
+                        <div class="hint">
+                            Si una materia no aparece, probablemente todavía no
+                            fue agregada.
+                        </div>
+                    </div>
+                </div>
+
+                <div id="builder-status" class="status-msg"></div>
+
+                <div class="advanced-toggle">
+                    <strong
+                        style="font-size: 14px; color: var(--text-secondary)"
+                    >
+                        Modo avanzado
+                    </strong>
+                    <button class="btn secondary" id="toggle-raw-btn">
+                        Mostrar/Ocultar Editor de Texto
+                    </button>
+                </div>
+
+                <div id="raw-editor">
+                    <div class="raw-grid">
+                        <div>
+                            <label>
+                                Materias (formato:
+                                <code>Nombre;Cuatrimestre;Estado</code>)
+                            </label>
+                            <textarea id="subjects-input"></textarea>
+                        </div>
+                        <div>
+                            <label>
+                                Correlativas (formato:
+                                <code
+                                    >Materia -&gt; Correlativa1,
+                                    Correlativa2</code
+                                >)
+                            </label>
+                            <textarea id="prereq-input"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="builder-actions">
+                    <button class="btn secondary" id="load-example-btn">
+                        Cargar Ejemplo
+                    </button>
+                    <button class="btn secondary" id="export-json-btn">
+                        Exportar JSON
+                    </button>
+                    <button class="btn primary" id="build-btn">
+                        Construir y Mostrar Plan
+                    </button>
+                    <button class="btn danger" id="clear-plan-btn">
+                        Borrar Plan Guardado
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="viewer-screen" class="screen">
+            <div id="eligible-panel">
+                <h3>Materias que podés cursar</h3>
+                <div id="eligible-count">0 habilitadas</div>
+                <ul id="eligible-list"></ul>
+            </div>
+
+            <div id="top-panel">
+                <div id="legend">
+                    <div class="leg-item">
+                        <div class="box pend"></div>
+                        Pendiente
+                    </div>
+                    <div class="leg-item">
+                        <div class="box reg"></div>
+                        Regular
+                    </div>
+                    <div class="leg-item">
+                        <div class="box apr"></div>
+                        Aprobada
+                    </div>
+                    <div class="leg-item">
+                        <div class="box pued"></div>
+                        Puedo Cursar
+                    </div>
+                </div>
+                <div class="btn-container">
+                    <button id="center-btn" class="btn primary">
+                        Centrar Mapa
+                    </button>
+                    <button id="reset-btn" class="btn danger">
+                        Resetear Progreso
+                    </button>
+                    <button id="edit-plan-btn" class="btn secondary">
+                        Editar Plan
+                    </button>
+                </div>
+            </div>
+
+            <div id="activity-panel">
+                <h3>Progreso</h3>
+                <div class="rings-container">
+                    <svg width="140" height="140" viewBox="0 0 140 140">
+                        <circle
+                            id="ring-background"
+                            cx="70"
+                            cy="70"
+                            r="50"
+                            fill="none"
+                            stroke="#1e293b"
+                            stroke-width="16"
+                        />
+                        <circle
+                            id="ring-regulares"
+                            cx="70"
+                            cy="70"
+                            r="50"
+                            fill="none"
+                            stroke="#64748b"
+                            stroke-width="16"
+                            stroke-linecap="round"
+                            stroke-dasharray="314.16"
+                            stroke-dashoffset="314.16"
+                            transform="rotate(-90 70 70)"
+                            style="transition: stroke-dashoffset 1s ease-in-out"
+                        />
+                        <circle
+                            id="ring-aprobadas"
+                            cx="70"
+                            cy="70"
+                            r="50"
+                            fill="none"
+                            stroke="#475569"
+                            stroke-width="16"
+                            stroke-linecap="round"
+                            stroke-dasharray="314.16"
+                            stroke-dashoffset="314.16"
+                            transform="rotate(-90 70 70)"
+                            style="transition: stroke-dashoffset 1s ease-in-out"
+                        />
+                    </svg>
+                </div>
+                <div class="stat-item">
+                    <span>Aprobadas</span>
+                    <span class="stat-value" id="count-aprobadas">0/0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Regulares</span>
+                    <span class="stat-value" id="count-regulares">0/0</span>
+                </div>
+            </div>
+
+            <div id="mynetwork"></div>
+
+            <div id="theme-toggle-container">
+                <button id="theme-toggle" title="Cambiar tema"></button>
+            </div>
+        </div>
+
+        <script>
+            const STORAGE_THEME = 'theme';
+            const STORAGE_PLAN = 'planInteractivoCustom';
+            const STORAGE_PROGRESS = 'progresoPlanInteractivo';
+
+            let network = null;
+            let nodes = null;
+            let visEdges = null;
+            let nodeData = [];
+            let edges = [];
+            const nodesMap = new Map();
+
+            const builderScreen = document.getElementById('builder-screen');
+            const viewerScreen = document.getElementById('viewer-screen');
+            const subjectsInput = document.getElementById('subjects-input');
+            const prereqInput = document.getElementById('prereq-input');
+            const subjectNameInput = document.getElementById('subject-name');
+            const subjectLevelInput = document.getElementById('subject-level');
+            const globalInitialStateInput = document.getElementById(
+                'global-initial-state',
+            );
+            const subjectsTableBody = document.getElementById(
+                'subjects-table-body',
+            );
+            const subjectsEmpty = document.getElementById('subjects-empty');
+            const subjectsCounter = document.getElementById('subjects-counter');
+            const prereqTargetSelect = document.getElementById(
+                'prereq-target-select',
+            );
+            const prereqMultiSelect = document.getElementById(
+                'prereq-multi-select',
+            );
+            const prereqPreview = document.getElementById('prereq-preview');
+            const builderStatus = document.getElementById('builder-status');
+            const rawEditor = document.getElementById('raw-editor');
+
+            let builderSubjects = [];
+            let builderEdges = [];
+            let selectedTargetId = null;
+
+            function safeTrim(value) {
+                return (value || '').trim();
+            }
+
+            function normalizeName(name) {
+                return safeTrim(name).toLowerCase();
+            }
+
+            function wrapLabel(name) {
+                const words = name.split(/\s+/);
+                let line = '';
+                const lines = [];
+                words.forEach((w) => {
+                    const test = line ? `${line} ${w}` : w;
+                    if (test.length > 16) {
+                        if (line) lines.push(line);
+                        line = w;
+                    } else {
+                        line = test;
+                    }
+                });
+                if (line) lines.push(line);
+                return lines.join('\n');
+            }
+
+            function stateToText(state) {
+                if (state === 2) return 'Aprobada';
+                if (state === 1) return 'Regular';
+                return 'Pendiente';
+            }
+
+            function escapeHtml(value) {
+                return value
+                    .replaceAll('&', '&amp;')
+                    .replaceAll('<', '&lt;')
+                    .replaceAll('>', '&gt;')
+                    .replaceAll('"', '&quot;')
+                    .replaceAll("'", '&#39;');
+            }
+
+            function showBuilderStatus(message) {
+                builderStatus.textContent = message;
+                builderStatus.style.display = 'block';
+                clearTimeout(showBuilderStatus.timerId);
+                showBuilderStatus.timerId = setTimeout(() => {
+                    builderStatus.style.display = 'none';
+                }, 2800);
+            }
+
+            function reindexBuilderData() {
+                const oldToNew = new Map();
+                builderSubjects = builderSubjects.map((s, idx) => {
+                    const newId = idx + 1;
+                    oldToNew.set(s.id, newId);
+                    return { ...s, id: newId };
+                });
+
+                builderEdges = builderEdges
+                    .map((e) => ({
+                        from: oldToNew.get(e.from),
+                        to: oldToNew.get(e.to),
+                    }))
+                    .filter((e) => e.from && e.to);
+            }
+
+            function syncRawInputsFromBuilder() {
+                subjectsInput.value = builderSubjects
+                    .map((s) => `${s.name};${s.level};${s.state}`)
+                    .join('\n');
+
+                const byTarget = new Map();
+                builderEdges.forEach((e) => {
+                    const target = builderSubjects.find((s) => s.id === e.to);
+                    const prereq = builderSubjects.find((s) => s.id === e.from);
+                    if (!target || !prereq) return;
+                    if (!byTarget.has(target.id)) {
+                        byTarget.set(target.id, {
+                            name: target.name,
+                            prereqs: [],
+                        });
+                    }
+                    byTarget.get(target.id).prereqs.push(prereq.name);
+                });
+
+                prereqInput.value = Array.from(byTarget.values())
+                    .map((item) => `${item.name} -> ${item.prereqs.join(', ')}`)
+                    .join('\n');
+            }
+
+            function renderSubjectsTable() {
+                subjectsCounter.textContent = `${builderSubjects.length} materias`;
+
+                if (builderSubjects.length === 0) {
+                    subjectsTableBody.innerHTML = '';
+                    subjectsEmpty.style.display = 'block';
+                    return;
+                }
+
+                subjectsEmpty.style.display = 'none';
+                subjectsTableBody.innerHTML = builderSubjects
+                    .map(
+                        (s) => `
+                    <tr data-subject-id="${s.id}">
+                        <td>
+                            <input
+                                class="inline-input"
+                                data-edit-field="name"
+                                value="${escapeHtml(s.name)}"
+                                placeholder="Nombre de materia"
+                            />
+                        </td>
+                        <td>
+                            <input
+                                class="inline-input"
+                                data-edit-field="level"
+                                type="number"
+                                min="1"
+                                value="${s.level}"
+                            />
+                        </td>
+                        <td>
+                            <select class="inline-select" data-edit-field="state">
+                                <option value="0" ${s.state === 0 ? 'selected' : ''}>Pendiente</option>
+                                <option value="1" ${s.state === 1 ? 'selected' : ''}>Regular</option>
+                                <option value="2" ${s.state === 2 ? 'selected' : ''}>Aprobada</option>
+                            </select>
+                        </td>
+                        <td>
+                            <button class="icon-btn" data-remove-id="${s.id}">Quitar</button>
+                        </td>
+                    </tr>`,
+                    )
+                    .join('');
+            }
+
+            function renderPrereqControls() {
+                if (builderSubjects.length === 0) {
+                    prereqTargetSelect.innerHTML =
+                        '<option value="">Primero agregá materias</option>';
+                    prereqMultiSelect.innerHTML = '';
+                    selectedTargetId = null;
+                    return;
+                }
+
+                if (!selectedTargetId) selectedTargetId = builderSubjects[0].id;
+                if (
+                    !builderSubjects.find(
+                        (s) => s.id === Number(selectedTargetId),
+                    )
+                ) {
+                    selectedTargetId = builderSubjects[0].id;
+                }
+
+                prereqTargetSelect.innerHTML = builderSubjects
+                    .map(
+                        (s) =>
+                            `<option value="${s.id}" ${Number(selectedTargetId) === s.id ? 'selected' : ''}>${escapeHtml(s.name)} (${s.level}º)</option>`,
+                    )
+                    .join('');
+
+                const targetId = Number(selectedTargetId);
+                const currentSet = new Set(
+                    builderEdges
+                        .filter((e) => e.to === targetId)
+                        .map((e) => e.from),
+                );
+                prereqMultiSelect.innerHTML = builderSubjects
+                    .filter((s) => s.id !== targetId)
+                    .map(
+                        (s) =>
+                            `<option value="${s.id}" ${currentSet.has(s.id) ? 'selected' : ''}>${escapeHtml(s.name)}</option>`,
+                    )
+                    .join('');
+            }
+
+            function renderPrereqPreview() {
+                if (builderSubjects.length === 0) {
+                    prereqPreview.innerHTML =
+                        '<li>No hay materias cargadas todavía.</li>';
+                    return;
+                }
+
+                const previewItems = builderSubjects
+                    .map((target) => {
+                        const prereqs = builderEdges
+                            .filter((e) => e.to === target.id)
+                            .map(
+                                (e) =>
+                                    builderSubjects.find((s) => s.id === e.from)
+                                        ?.name,
+                            )
+                            .filter(Boolean);
+                        if (prereqs.length === 0) return null;
+                        return `<li><strong>${escapeHtml(target.name)}</strong>: ${escapeHtml(
+                            prereqs.join(', '),
+                        )}</li>`;
+                    })
+                    .filter(Boolean);
+
+                prereqPreview.innerHTML = previewItems.length
+                    ? previewItems.join('')
+                    : '<li>Todavía no definiste correlativas.</li>';
+            }
+
+            function refreshBuilderUI() {
+                renderSubjectsTable();
+                renderPrereqControls();
+                renderPrereqPreview();
+                syncRawInputsFromBuilder();
+            }
+
+            function applyPlanToBuilder(plan) {
+                builderSubjects = (plan.subjects || []).map((s, idx) => ({
+                    id: idx + 1,
+                    name: s.name,
+                    level: Number(s.level),
+                    state: [0, 1, 2].includes(Number(s.state))
+                        ? Number(s.state)
+                        : 0,
+                }));
+
+                const valid = new Set(builderSubjects.map((s) => s.id));
+                builderEdges = (plan.edges || [])
+                    .map((e) => ({ from: Number(e.from), to: Number(e.to) }))
+                    .filter(
+                        (e) =>
+                            valid.has(e.from) &&
+                            valid.has(e.to) &&
+                            e.from !== e.to,
+                    );
+
+                if (builderSubjects.length > 0) {
+                    selectedTargetId = builderSubjects[0].id;
+                }
+
+                refreshBuilderUI();
+            }
+
+            function parsePlanFromInputs() {
+                const subjectLines = subjectsInput.value
+                    .split('\n')
+                    .map((line) => line.trim())
+                    .filter(Boolean);
+
+                if (subjectLines.length === 0) {
+                    throw new Error('Ingresá al menos una materia.');
+                }
+
+                const subjects = [];
+                const idByName = new Map();
+
+                subjectLines.forEach((line, index) => {
+                    const parts = line.split(';').map((p) => p.trim());
+                    const name = parts[0];
+                    const level = Number(parts[1]);
+                    const state = parts[2] === undefined ? 0 : Number(parts[2]);
+
+                    if (!name) {
+                        throw new Error(`Línea ${index + 1}: falta el nombre.`);
+                    }
+                    if (!Number.isInteger(level) || level < 1) {
+                        throw new Error(
+                            `Línea ${index + 1}: cuatrimestre inválido para "${name}".`,
+                        );
+                    }
+                    if (![0, 1, 2].includes(state)) {
+                        throw new Error(
+                            `Línea ${index + 1}: estado inválido para "${name}".`,
+                        );
+                    }
+
+                    const key = normalizeName(name);
+                    if (idByName.has(key)) {
+                        throw new Error(
+                            `Nombre duplicado detectado: "${name}".`,
+                        );
+                    }
+
+                    const id = index + 1;
+                    idByName.set(key, id);
+                    subjects.push({
+                        id,
+                        name: safeTrim(name),
+                        label: wrapLabel(safeTrim(name)),
+                        level,
+                        state,
+                    });
+                });
+
+                const edgeLines = prereqInput.value
+                    .split('\n')
+                    .map((line) => line.trim())
+                    .filter(Boolean);
+
+                const parsedEdges = [];
+                const edgeKey = new Set();
+
+                edgeLines.forEach((line, index) => {
+                    const separator = line.includes('->') ? '->' : ':';
+                    const parts = line.split(separator);
+                    if (parts.length !== 2) {
+                        throw new Error(
+                            `Correlativas línea ${index + 1}: formato inválido.`,
+                        );
+                    }
+
+                    const targetName = safeTrim(parts[0]);
+                    const targetId = idByName.get(normalizeName(targetName));
+                    if (!targetId) {
+                        throw new Error(
+                            `Correlativas línea ${index + 1}: materia "${targetName}" no existe.`,
+                        );
+                    }
+
+                    const prereqNames = parts[1]
+                        .split(',')
+                        .map((p) => p.trim())
+                        .filter(Boolean);
+
+                    prereqNames.forEach((pName) => {
+                        const pId = idByName.get(normalizeName(pName));
+                        if (!pId) {
+                            throw new Error(
+                                `Correlativas línea ${index + 1}: correlativa "${pName}" no existe.`,
+                            );
+                        }
+                        if (pId === targetId) {
+                            throw new Error(
+                                `Correlativas línea ${index + 1}: "${targetName}" no puede depender de sí misma.`,
+                            );
+                        }
+
+                        const key = `${pId}-${targetId}`;
+                        if (!edgeKey.has(key)) {
+                            edgeKey.add(key);
+                            parsedEdges.push({ from: pId, to: targetId });
+                        }
+                    });
+                });
+
+                return { subjects, edges: parsedEdges };
+            }
+
+            function updateRingBackground() {
+                const ringBg = document.getElementById('ring-background');
+                if (ringBg) {
+                    ringBg.setAttribute(
+                        'stroke',
+                        document.body.classList.contains('light-mode')
+                            ? '#e2e8f0'
+                            : '#1e293b',
+                    );
+                }
+            }
+
+            function applyTheme() {
+                const savedTheme =
+                    localStorage.getItem(STORAGE_THEME) || 'dark';
+                document.body.classList.toggle(
+                    'light-mode',
+                    savedTheme === 'light',
+                );
+                updateRingBackground();
+            }
+
+            function getStyle(state, canTake) {
+                const isLight = document.body.classList.contains('light-mode');
+                if (state === 2) {
+                    return {
+                        borderColor: '#374151',
+                        bg: 'rgba(55, 65, 81, 0.15)',
+                        fontColor: isLight ? '#0f172a' : 'white',
+                    };
+                }
+                if (state === 1) {
+                    return {
+                        borderColor: '#6b7280',
+                        bg: 'rgba(100, 116, 139, 0.15)',
+                        fontColor: isLight ? '#0f172a' : 'white',
+                    };
+                }
+                if (canTake) {
+                    return {
+                        borderColor: isLight ? '#64748b' : '#cbd5e1',
+                        bg: isLight ? '#e2e8f0' : '#111827',
+                        fontColor: isLight ? '#0f172a' : 'white',
+                    };
+                }
+                return {
+                    borderColor: isLight ? '#d1d5db' : '#334155',
+                    bg: isLight ? '#f8fafc' : '#1e293b',
+                    fontColor: isLight ? '#475569' : '#cbd5e1',
+                };
+            }
+
+            function updateNodes() {
+                const visNodes = [];
+                const isLight = document.body.classList.contains('light-mode');
+
+                nodeData.forEach((n) => {
+                    if (String(n.id).startsWith('lbl_')) {
+                        visNodes.push({
+                            id: n.id,
+                            label: `${n.level}º CUAT.`,
+                            x: -760,
+                            y: n.level * 160,
+                            shape: 'text',
+                            fixed: true,
+                            clickable: false,
+                            font: {
+                                size: 18,
+                                color: isLight ? '#cbd5e1' : '#475569',
+                                bold: true,
+                                align: 'left',
+                            },
+                        });
+                        return;
+                    }
+
+                    const prereqs = edges
+                        .filter((e) => e.to === n.id)
+                        .map((e) => e.from);
+                    const canTake = prereqs.every(
+                        (pid) => nodesMap.get(pid).state >= 1,
+                    );
+                    const style = getStyle(n.state, canTake);
+
+                    visNodes.push({
+                        id: n.id,
+                        label: n.label,
+                        x: n.x,
+                        y: n.y,
+                        shape: 'box',
+                        widthConstraint: { minimum: 150, maximum: 150 },
+                        heightConstraint: { minimum: 50, valign: 'middle' },
+                        color: {
+                            border: style.borderColor,
+                            background: style.bg,
+                            hover: {
+                                border: style.borderColor,
+                                background: style.bg,
+                            },
+                        },
+                        font: {
+                            color: style.fontColor,
+                            size: 13,
+                            multi: true,
+                            align: 'center',
+                        },
+                        borderWidth: 2,
+                        borderWidthSelected: 3,
+                        shadow: {
+                            enabled: true,
+                            color: 'rgba(0,0,0,0.35)',
+                            size: 7,
+                            x: 2,
+                            y: 3,
+                        },
+                        fixed: { x: true, y: true },
+                    });
+                });
+
+                return visNodes;
+            }
+
+            function getEligibleSubjects() {
+                return nodeData
+                    .filter((n) => !String(n.id).startsWith('lbl_'))
+                    .filter((n) => n.state === 0)
+                    .filter((n) => {
+                        const prereqs = edges
+                            .filter((e) => e.to === n.id)
+                            .map((e) => e.from);
+                        return prereqs.every(
+                            (pid) => nodesMap.get(pid).state >= 1,
+                        );
+                    })
+                    .sort((a, b) => {
+                        if (a.level !== b.level) return a.level - b.level;
+                        return a.name.localeCompare(b.name, 'es');
+                    });
+            }
+
+            function updateEligibleList() {
+                const list = document.getElementById('eligible-list');
+                const count = document.getElementById('eligible-count');
+                const eligible = getEligibleSubjects();
+
+                count.textContent = `${eligible.length} habilitadas`;
+                if (eligible.length === 0) {
+                    list.innerHTML =
+                        '<li>No hay materias habilitadas pendientes.</li>';
+                    return;
+                }
+                list.innerHTML = eligible
+                    .map((s) => `<li>${s.name} (${s.level}º cuat.)</li>`)
+                    .join('');
+            }
+
+            function updateActivityRings() {
+                const total = nodeData.filter(
+                    (n) => !String(n.id).startsWith('lbl_'),
+                ).length;
+                let aprobadas = 0;
+                let regulares = 0;
+                nodesMap.forEach((n) => {
+                    if (n.state === 2) aprobadas += 1;
+                    else if (n.state === 1) regulares += 1;
+                });
+
+                const circumference = 2 * Math.PI * 50;
+                const progressReg =
+                    ((regulares + aprobadas) / Math.max(total, 1)) *
+                    circumference;
+                const progressApr =
+                    (aprobadas / Math.max(total, 1)) * circumference;
+
+                document.getElementById(
+                    'ring-regulares',
+                ).style.strokeDashoffset = circumference - progressReg;
+                document.getElementById(
+                    'ring-aprobadas',
+                ).style.strokeDashoffset = circumference - progressApr;
+
+                document.getElementById('count-aprobadas').textContent =
+                    `${aprobadas}/${total}`;
+                document.getElementById('count-regulares').textContent =
+                    `${regulares}/${total}`;
+            }
+
+            function saveProgress() {
+                const state = {};
+                nodesMap.forEach((n, id) => {
+                    state[id] = n.state;
+                });
+                localStorage.setItem(STORAGE_PROGRESS, JSON.stringify(state));
+                updateActivityRings();
+                updateEligibleList();
+            }
+
+            function buildGraphLayout(subjects) {
+                const ySpacing = 160;
+                const xSpacing = 185;
+                const byLevel = {};
+
+                subjects.forEach((s) => {
+                    byLevel[s.level] = byLevel[s.level] || [];
+                    byLevel[s.level].push(s);
+                });
+
+                subjects.forEach((s) => {
+                    const row = byLevel[s.level];
+                    const rowWidth = row.length * xSpacing;
+                    const startX = -(rowWidth / 2) + xSpacing / 2;
+                    const index = row.findIndex((r) => r.id === s.id);
+                    s.x = startX + index * xSpacing;
+                    s.y = s.level * ySpacing;
+                });
+
+                const maxLevel = Math.max(...subjects.map((s) => s.level));
+                const labels = [];
+                for (let i = 1; i <= maxLevel; i++) {
+                    labels.push({ id: `lbl_${i}`, level: i });
+                }
+
+                return { maxLevel, labels };
+            }
+
+            function renderPlan(plan, resetProgress = false) {
+                if (resetProgress) {
+                    localStorage.removeItem(STORAGE_PROGRESS);
+                }
+
+                nodeData = [];
+                edges = plan.edges.map((e) => ({ from: e.from, to: e.to }));
+                nodesMap.clear();
+
+                const progress = JSON.parse(
+                    localStorage.getItem(STORAGE_PROGRESS) || '{}',
+                );
+                const subjects = plan.subjects.map((s) => ({ ...s }));
+                const { labels } = buildGraphLayout(subjects);
+
+                subjects.forEach((s) => {
+                    const savedState = progress[s.id];
+                    s.state = [0, 1, 2].includes(savedState)
+                        ? savedState
+                        : s.state || 0;
+                    nodeData.push(s);
+                    nodesMap.set(s.id, s);
+                });
+
+                labels.forEach((l) => {
+                    nodeData.push({ id: l.id, level: l.level });
+                });
+
+                const container = document.getElementById('mynetwork');
+                nodes = new vis.DataSet(updateNodes());
+                const isLight = document.body.classList.contains('light-mode');
+                visEdges = new vis.DataSet(
+                    edges.map((e) => ({
+                        ...e,
+                        id: `${e.from}-${e.to}`,
+                        color: {
+                            color: isLight ? '#cbd5e1' : '#475569',
+                            opacity: 0.6,
+                            highlight: isLight ? '#64748b' : '#94a3b8',
+                        },
+                        arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+                        smooth: { type: 'vertical', roundness: 0.3 },
+                    })),
+                );
+
+                const data = { nodes, edges: visEdges };
+                const options = {
+                    physics: false,
+                    interaction: {
+                        hover: true,
+                        dragNodes: false,
+                        selectConnectedEdges: false,
+                    },
+                };
+
+                network = new vis.Network(container, data, options);
+                network.once('afterDrawing', () => {
+                    network.fit({
+                        scale: 0.8,
+                        animation: {
+                            duration: 500,
+                            easingFunction: 'easeInOutQuad',
+                        },
+                    });
+                });
+
+                network.on('click', (params) => {
+                    if (params.nodes.length === 0) return;
+                    const nodeId = params.nodes[0];
+                    if (String(nodeId).startsWith('lbl_')) return;
+
+                    const node = nodesMap.get(nodeId);
+                    node.state = (node.state + 1) % 3;
+                    nodes.update(updateNodes());
+                    saveProgress();
+                });
+
+                updateActivityRings();
+                updateEligibleList();
+                updateRingBackground();
+            }
+
+            function switchToViewer() {
+                builderScreen.classList.remove('active');
+                viewerScreen.classList.add('active');
+            }
+
+            function switchToBuilder() {
+                viewerScreen.classList.remove('active');
+                builderScreen.classList.add('active');
+            }
+
+            function loadExample() {
+                applyPlanToBuilder({
+                    subjects: [],
+                    edges: [],
+                });
+
+                showBuilderStatus('Plan vacío listo para completar.');
+            }
+
+            function parsePlanFromBuilderOrRaw() {
+                if (rawEditor.classList.contains('open')) {
+                    const parsed = parsePlanFromInputs();
+                    applyPlanToBuilder(parsed);
+                    return parsed;
+                }
+                syncRawInputsFromBuilder();
+                return parsePlanFromInputs();
+            }
+
+            function applyRawEditorToBuilder() {
+                try {
+                    const parsed = parsePlanFromInputs();
+                    applyPlanToBuilder(parsed);
+                    showBuilderStatus(
+                        'Se aplicaron cambios del modo avanzado.',
+                    );
+                } catch (err) {
+                    alert(`Error en el modo avanzado: ${err.message}`);
+                }
+            }
+
+            function exportJson() {
+                try {
+                    const parsed = parsePlanFromBuilderOrRaw();
+                    const text = JSON.stringify(parsed, null, 2);
+                    navigator.clipboard
+                        .writeText(text)
+                        .then(() => alert('JSON copiado al portapapeles.'))
+                        .catch(() => alert(text));
+                } catch (err) {
+                    alert(err.message);
+                }
+            }
+
+            function buildAndShowPlan() {
+                try {
+                    const parsed = parsePlanFromBuilderOrRaw();
+                    localStorage.setItem(STORAGE_PLAN, JSON.stringify(parsed));
+                    renderPlan(parsed, true);
+                    switchToViewer();
+                } catch (err) {
+                    alert(`No se pudo construir el plan: ${err.message}`);
+                }
+            }
+
+            function addSubject() {
+                const name = safeTrim(subjectNameInput.value);
+                const level = Number(subjectLevelInput.value);
+                const state = Number(globalInitialStateInput.value);
+
+                if (!name) {
+                    alert('Ingresá un nombre de materia.');
+                    return;
+                }
+                if (!Number.isInteger(level) || level < 1) {
+                    alert('Ingresá un cuatrimestre válido (1 o mayor).');
+                    return;
+                }
+                if (
+                    builderSubjects.some(
+                        (s) => normalizeName(s.name) === normalizeName(name),
+                    )
+                ) {
+                    alert('Ya existe una materia con ese nombre.');
+                    return;
+                }
+
+                builderSubjects.push({
+                    id: builderSubjects.length + 1,
+                    name,
+                    level,
+                    state,
+                });
+                if (!selectedTargetId) selectedTargetId = 1;
+
+                subjectNameInput.value = '';
+                subjectLevelInput.value = String(level);
+                refreshBuilderUI();
+            }
+
+            function updateSubjectInline(subjectId, field, rawValue) {
+                const subject = builderSubjects.find((s) => s.id === subjectId);
+                if (!subject) return;
+
+                if (field === 'name') {
+                    const name = safeTrim(rawValue);
+                    if (!name) {
+                        alert('El nombre no puede estar vacío.');
+                        refreshBuilderUI();
+                        return;
+                    }
+                    const duplicated = builderSubjects.some(
+                        (s) =>
+                            s.id !== subjectId &&
+                            normalizeName(s.name) === normalizeName(name),
+                    );
+                    if (duplicated) {
+                        alert('Ya existe otra materia con ese nombre.');
+                        refreshBuilderUI();
+                        return;
+                    }
+                    subject.name = name;
+                }
+
+                if (field === 'level') {
+                    const level = Number(rawValue);
+                    if (!Number.isInteger(level) || level < 1) {
+                        alert('Cuatrimestre inválido.');
+                        refreshBuilderUI();
+                        return;
+                    }
+                    subject.level = level;
+                }
+
+                if (field === 'state') {
+                    const state = Number(rawValue);
+                    if (![0, 1, 2].includes(state)) {
+                        alert('Estado inválido.');
+                        refreshBuilderUI();
+                        return;
+                    }
+                    subject.state = state;
+                }
+
+                refreshBuilderUI();
+            }
+
+            function applyGlobalInitialStateToAll() {
+                const state = Number(globalInitialStateInput.value);
+                if (![0, 1, 2].includes(state)) return;
+                builderSubjects = builderSubjects.map((s) => ({ ...s, state }));
+                refreshBuilderUI();
+                showBuilderStatus(
+                    `Se inicializaron ${builderSubjects.length} materias en estado ${stateToText(state).toLowerCase()}.`,
+                );
+            }
+
+            function removeSubject(subjectId) {
+                builderSubjects = builderSubjects.filter(
+                    (s) => s.id !== subjectId,
+                );
+                builderEdges = builderEdges.filter(
+                    (e) => e.from !== subjectId && e.to !== subjectId,
+                );
+                reindexBuilderData();
+                selectedTargetId = builderSubjects[0]?.id || null;
+                refreshBuilderUI();
+            }
+
+            function clearSubjects() {
+                if (
+                    !confirm(
+                        '¿Vaciar todas las materias y correlativas cargadas?',
+                    )
+                )
+                    return;
+                builderSubjects = [];
+                builderEdges = [];
+                selectedTargetId = null;
+                refreshBuilderUI();
+            }
+
+            function savePrereqsForSelectedTarget() {
+                const targetId = Number(prereqTargetSelect.value);
+                if (!targetId) {
+                    alert('Elegí una materia objetivo.');
+                    return;
+                }
+
+                const prereqIds = Array.from(
+                    prereqMultiSelect.selectedOptions,
+                ).map((o) => Number(o.value));
+
+                builderEdges = builderEdges.filter((e) => e.to !== targetId);
+                prereqIds.forEach((from) => {
+                    if (from !== targetId)
+                        builderEdges.push({ from, to: targetId });
+                });
+
+                refreshBuilderUI();
+                showBuilderStatus('Correlativas guardadas.');
+            }
+
+            function resetProgress() {
+                if (
+                    !confirm(
+                        '¿Seguro que querés borrar tu progreso de este plan?',
+                    )
+                )
+                    return;
+                localStorage.removeItem(STORAGE_PROGRESS);
+                const savedPlan = JSON.parse(
+                    localStorage.getItem(STORAGE_PLAN) || 'null',
+                );
+                if (savedPlan) renderPlan(savedPlan, true);
+            }
+
+            function clearSavedPlan() {
+                if (!confirm('¿Borrar plan y progreso guardados?')) return;
+                localStorage.removeItem(STORAGE_PLAN);
+                localStorage.removeItem(STORAGE_PROGRESS);
+                builderSubjects = [];
+                builderEdges = [];
+                selectedTargetId = null;
+                refreshBuilderUI();
+                switchToBuilder();
+            }
+
+            document
+                .getElementById('load-example-btn')
+                .addEventListener('click', loadExample);
+            document
+                .getElementById('export-json-btn')
+                .addEventListener('click', exportJson);
+            document
+                .getElementById('build-btn')
+                .addEventListener('click', buildAndShowPlan);
+            document
+                .getElementById('add-subject-btn')
+                .addEventListener('click', addSubject);
+            document
+                .getElementById('apply-initial-state-btn')
+                .addEventListener('click', applyGlobalInitialStateToAll);
+            document
+                .getElementById('clear-subjects-btn')
+                .addEventListener('click', clearSubjects);
+            document
+                .getElementById('save-prereq-btn')
+                .addEventListener('click', savePrereqsForSelectedTarget);
+            document
+                .getElementById('toggle-raw-btn')
+                .addEventListener('click', () => {
+                    rawEditor.classList.toggle('open');
+                    if (!rawEditor.classList.contains('open')) {
+                        applyRawEditorToBuilder();
+                    }
+                });
+            document
+                .getElementById('clear-plan-btn')
+                .addEventListener('click', clearSavedPlan);
+
+            subjectsTableBody.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-remove-id]');
+                if (!button) return;
+                removeSubject(Number(button.dataset.removeId));
+            });
+
+            subjectsTableBody.addEventListener('change', (event) => {
+                const editable = event.target.closest('[data-edit-field]');
+                if (!editable) return;
+                const row = editable.closest('[data-subject-id]');
+                if (!row) return;
+                updateSubjectInline(
+                    Number(row.dataset.subjectId),
+                    editable.dataset.editField,
+                    editable.value,
+                );
+            });
+
+            prereqTargetSelect.addEventListener('change', () => {
+                selectedTargetId = Number(prereqTargetSelect.value) || null;
+                renderPrereqControls();
+            });
+
+            subjectNameInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    addSubject();
+                }
+            });
+
+            document
+                .getElementById('center-btn')
+                .addEventListener('click', () => {
+                    if (!network) return;
+                    network.fit({
+                        scale: 0.8,
+                        animation: {
+                            duration: 500,
+                            easingFunction: 'easeInOutQuad',
+                        },
+                    });
+                });
+
+            document
+                .getElementById('reset-btn')
+                .addEventListener('click', resetProgress);
+            document
+                .getElementById('edit-plan-btn')
+                .addEventListener('click', switchToBuilder);
+
+            document
+                .getElementById('theme-toggle')
+                .addEventListener('click', () => {
+                    const light = document.body.classList.toggle('light-mode');
+                    localStorage.setItem(
+                        STORAGE_THEME,
+                        light ? 'light' : 'dark',
+                    );
+                    updateRingBackground();
+
+                    if (nodes) nodes.update(updateNodes());
+                    if (visEdges) {
+                        const isLight =
+                            document.body.classList.contains('light-mode');
+                        visEdges.update(
+                            edges.map((e) => ({
+                                id: `${e.from}-${e.to}`,
+                                color: {
+                                    color: isLight ? '#cbd5e1' : '#475569',
+                                    opacity: 0.6,
+                                    highlight: isLight ? '#64748b' : '#94a3b8',
+                                },
+                            })),
+                        );
+                    }
+                });
+
+            // Real-time subject name validation
+            const subjectNameValidation = document.getElementById(
+                'subject-name-validation',
+            );
+            subjectNameInput.addEventListener('input', () => {
+                const inputValue = safeTrim(subjectNameInput.value);
+
+                if (!inputValue) {
+                    subjectNameValidation.classList.remove('show');
+                    subjectNameInput.classList.remove('duplicate', 'available');
+                    return;
+                }
+
+                const isDuplicate = builderSubjects.some(
+                    (s) => normalizeName(s.name) === normalizeName(inputValue),
+                );
+
+                subjectNameValidation.classList.add('show');
+                if (isDuplicate) {
+                    subjectNameValidation.textContent =
+                        '⚠️ Ya existe una materia con ese nombre';
+                    subjectNameValidation.classList.remove('success');
+                    subjectNameValidation.classList.add('error');
+                    subjectNameInput.classList.remove('available');
+                    subjectNameInput.classList.add('duplicate');
+                } else {
+                    subjectNameValidation.textContent = '✓ Nombre disponible';
+                    subjectNameValidation.classList.remove('error');
+                    subjectNameValidation.classList.add('success');
+                    subjectNameInput.classList.remove('duplicate');
+                    subjectNameInput.classList.add('available');
+                }
+            });
+
+            applyTheme();
+
+            const savedPlan = JSON.parse(
+                localStorage.getItem(STORAGE_PLAN) || 'null',
+            );
+            if (savedPlan && savedPlan.subjects && savedPlan.edges) {
+                applyPlanToBuilder(savedPlan);
+                renderPlan(savedPlan, false);
+                switchToViewer();
+            } else {
+                loadExample();
+                switchToBuilder();
+            }
+        </script>
+    </body>
+</html>
