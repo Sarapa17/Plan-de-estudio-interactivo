@@ -86,25 +86,6 @@ Formato: `MateriaDependiente -> Prerequisito1, Prerequisito2`
     - Azul claro: Habilitada para cursar
 - **Distribución**: Organizadas por cuatrimestre (izquierda a derecha)
 
-## GitHub Pages
-
-Para publicar en GitHub Pages:
-
-1. Sube este repositorio a GitHub
-2. Ve a Settings → Pages
-3. Selecciona "main" como rama
-4. La aplicación estará disponible en: `https://<tu-usuario>.github.io/<tu-repo>/`
-
-## Subir a GitHub
-
-```sh
-git init
-git add .
-git commit -m "Initial commit - Plan de estudios interactivo"
-git remote add origin https://github.com/<tu-usuario>/<tu-repo>.git
-git push -u origin main
-```
-
 ## Requisitos
 
 - Navegador moderno (Chrome, Firefox, Safari, Edge)
